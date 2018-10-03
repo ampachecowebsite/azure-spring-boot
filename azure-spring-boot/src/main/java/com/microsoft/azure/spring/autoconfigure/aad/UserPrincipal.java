@@ -20,38 +20,10 @@ public class UserPrincipal implements Serializable {
     private JWTClaimsSet jwtClaimsSet;
     private List<UserGroup> userGroups = Lists.newArrayList();
 
-    public static class Builder {
-        private JWKSet jwsKeySet;
-        private JWSObject jwsObject;
-        private JWTClaimsSet jwtClaimsSet;
-
-        public Builder() {
-        }
-
-        public Builder jwsKeySet(JWKSet jwsKeySet) {
-            this.jwsKeySet = jwsKeySet;
-            return this;
-        }
-
-        public Builder jwsObject(JWSObject jwsObject) {
-            this.jwsObject = jwsObject;
-            return this;
-        }
-
-        public Builder claims(JWTClaimsSet jwtClaimsSet) {
-            this.jwtClaimsSet = jwtClaimsSet;
-            return this;
-        }
-
-        public UserPrincipal build() {
-           return new UserPrincipal(this);
-        }
-    }
-
-    private UserPrincipal(Builder builder) {
-        this.jwsKeySet = builder.jwsKeySet;
-        this.jwsObject = builder.jwsObject;
-        this.jwtClaimsSet = builder.jwtClaimsSet;
+    public UserPrincipal(JWKSet jwkSet, JWSObject jwsObject, JWTClaimsSet jwtClaimsSet) {
+        this.jwsKeySet = jwkSet;
+        this.jwsObject = jwsObject;
+        this.jwtClaimsSet = jwtClaimsSet;
     }
 
     // claimset

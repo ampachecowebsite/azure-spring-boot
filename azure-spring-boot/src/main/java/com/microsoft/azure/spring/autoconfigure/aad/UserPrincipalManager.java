@@ -44,10 +44,7 @@ public class UserPrincipalManager {
         verifier.verify(jwtClaimsSet, null);
         final JWSObject jwsObject = JWSObject.parse(idToken);
 
-        return new UserPrincipal.Builder().claims(jwtClaimsSet)
-                .jwsObject(jwsObject)
-                .jwsKeySet(jwsKeySet)
-                .build();
+        return new UserPrincipal(jwsKeySet, jwsObject, jwtClaimsSet);
     }
 
     private JWKSet loadAadPublicKeys() {
