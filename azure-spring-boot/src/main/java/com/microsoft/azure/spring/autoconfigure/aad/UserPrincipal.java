@@ -5,64 +5,53 @@
  */
 package com.microsoft.azure.spring.autoconfigure.aad;
 
-import com.nimbusds.jose.JOSEException;
-import com.nimbusds.jose.JWSAlgorithm;
+import com.google.common.collect.Lists;
 import com.nimbusds.jose.JWSObject;
 import com.nimbusds.jose.jwk.JWK;
 import com.nimbusds.jose.jwk.JWKSet;
-import com.nimbusds.jose.jwk.source.JWKSource;
-import com.nimbusds.jose.jwk.source.RemoteJWKSet;
-import com.nimbusds.jose.proc.BadJOSEException;
-import com.nimbusds.jose.proc.JWSKeySelector;
-import com.nimbusds.jose.proc.JWSVerificationKeySelector;
-import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
-import com.nimbusds.jwt.proc.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.text.ParseException;
+import java.io.Serializable;
 import java.util.*;
 
-public class UserPrincipal {
-
-    private static final Logger LOG = LoggerFactory.getLogger(UserPrincipal.class);
-    private ServiceEndpoints serviceEndpoints;
+public class UserPrincipal implements Serializable {
     private JWKSet jwsKeySet;
     private JWSObject jwsObject;
     private JWTClaimsSet jwtClaimsSet;
-    private List<UserGroup> userGroups;
+    private List<UserGroup> userGroups = Lists.newArrayList();
 
-    public UserPrincipal() {
-        jwsObject = null;
-        jwtClaimsSet = null;
-        userGroups = null;
-        serviceEndpoints = new ServiceEndpoints();
-    }
+    public static class Builder {
+        private JWKSet jwsKeySet;
+        private JWSObject jwsObject;
+        private JWTClaimsSet jwtClaimsSet;
 
-    public UserPrincipal(String idToken, ServiceEndpoints serviceEndpoints)
-            throws MalformedURLException, ParseException, BadJOSEException, JOSEException {
-        this.serviceEndpoints = serviceEndpoints;
-        this.jwsKeySet = loadAadPublicKeys();
-        final ConfigurableJWTProcessor<SecurityContext> validator = getAadJwtTokenValidator();
-        jwtClaimsSet = validator.process(idToken, null);
-        final JWTClaimsSetVerifier<SecurityContext> verifier = validator
-                .getJWTClaimsSetVerifier();
-        verifier.verify(jwtClaimsSet, null);
-        jwsObject = JWSObject.parse(idToken);
-        userGroups = null;
-    }
-
-    private JWKSet loadAadPublicKeys() {
-        try {
-            return JWKSet.load(new URL(serviceEndpoints.getAadKeyDiscoveryUri()));
-        } catch (IOException | ParseException e) {
-            LOG.error("Error loading AAD public keys: {}", e.getMessage());
+        public Builder() {
         }
-        return null;
+
+        public Builder jwsKeySet(JWKSet jwsKeySet) {
+            this.jwsKeySet = jwsKeySet;
+            return this;
+        }
+
+        public Builder jwsObject(JWSObject jwsObject) {
+            this.jwsObject = jwsObject;
+            return this;
+        }
+
+        public Builder claims(JWTClaimsSet jwtClaimsSet) {
+            this.jwtClaimsSet = jwtClaimsSet;
+            return this;
+        }
+
+        public UserPrincipal build() {
+           return new UserPrincipal(this);
+        }
+    }
+
+    private UserPrincipal(Builder builder) {
+        this.jwsKeySet = builder.jwsKeySet;
+        this.jwsObject = builder.jwsObject;
+        this.jwtClaimsSet = builder.jwtClaimsSet;
     }
 
     // claimset
@@ -96,35 +85,12 @@ public class UserPrincipal {
         this.userGroups = groups;
     }
 
-    public List<UserGroup> getUserGroups(List<UserGroup> groups) {
+    public List<UserGroup> getUserGroups() {
         return this.userGroups;
     }
 
     public boolean isMemberOf(UserGroup group) {
         return !(userGroups == null || userGroups.isEmpty()) && userGroups.contains(group);
-    }
-
-    private ConfigurableJWTProcessor<SecurityContext> getAadJwtTokenValidator()
-            throws MalformedURLException {
-        final ConfigurableJWTProcessor<SecurityContext> jwtProcessor = new DefaultJWTProcessor<>();
-        final JWKSource<SecurityContext> keySource =
-                new RemoteJWKSet<>(new URL(serviceEndpoints.getAadKeyDiscoveryUri()));
-        final JWSAlgorithm expectedJWSAlg = JWSAlgorithm.RS256;
-        final JWSKeySelector<SecurityContext> keySelector = new JWSVerificationKeySelector<>(expectedJWSAlg, keySource);
-        jwtProcessor.setJWSKeySelector(keySelector);
-
-        jwtProcessor.setJWTClaimsSetVerifier(new DefaultJWTClaimsVerifier<SecurityContext>() {
-            @Override
-            public void verify(JWTClaimsSet claimsSet, SecurityContext ctx) throws BadJWTException {
-                super.verify(claimsSet, ctx);
-                final String issuer = claimsSet.getIssuer();
-                if (issuer == null || !issuer.contains("https://sts.windows.net/")
-                        && !issuer.contains("https://sts.chinacloudapi.cn/")) {
-                    throw new BadJWTException("Invalid token issuer");
-                }
-            }
-        });
-        return jwtProcessor;
     }
 }
 

@@ -36,11 +36,16 @@ public class AADAuthenticationFilter extends OncePerRequestFilter {
 
     private AADAuthenticationProperties aadAuthProps;
     private ServiceEndpointsProperties serviceEndpointsProps;
+    private UserPrincipalManager principalManager;
 
     public AADAuthenticationFilter(AADAuthenticationProperties aadAuthProps,
                                    ServiceEndpointsProperties serviceEndpointsProps) {
         this.aadAuthProps = aadAuthProps;
         this.serviceEndpointsProps = serviceEndpointsProps;
+
+        final ServiceEndpoints serviceEndpoints =
+                serviceEndpointsProps.getServiceEndpoints(aadAuthProps.getEnvironment());
+        this.principalManager = new UserPrincipalManager(serviceEndpoints);
     }
 
     @Override
@@ -59,9 +64,6 @@ public class AADAuthenticationFilter extends OncePerRequestFilter {
                 String graphApiToken = (String) request
                         .getSession().getAttribute(CURRENT_USER_PRINCIPAL_GRAPHAPI_TOKEN);
 
-                final ServiceEndpoints serviceEndpoints =
-                        serviceEndpointsProps.getServiceEndpoints(aadAuthProps.getEnvironment());
-
                 final ClientCredential credential =
                         new ClientCredential(aadAuthProps.getClientId(), aadAuthProps.getClientSecret());
 
@@ -69,7 +71,7 @@ public class AADAuthenticationFilter extends OncePerRequestFilter {
                         new AzureADGraphClient(credential, aadAuthProps, serviceEndpointsProps);
 
                 if (principal == null || graphApiToken == null || graphApiToken.isEmpty()) {
-                    principal = new UserPrincipal(idToken, serviceEndpoints);
+                    principal = principalManager.buildUserPrincipal(idToken);
 
                     final String tenantId = principal.getClaim().toString();
                     graphApiToken = client.acquireTokenForGraphApi(idToken, tenantId).getAccessToken();
